@@ -93,6 +93,7 @@ def main() -> None:
     rows, grades = [], []
     try:
         for i, spec in enumerate(specs, start=1):
+            started = datetime.now(timezone.utc).isoformat(timespec="milliseconds")
             answer = make_pipeline().run(spec.question)
             letter = grade(spec, answer.status, answer.text, answer.citations)
             grades.append(letter)
@@ -100,7 +101,7 @@ def main() -> None:
                 "request_id": f"quality-{spec.id}",
                 "scenario": f"quality-{args.source}",
                 "source": args.source,
-                "start_time": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
+                "start_time": started,
                 "first_token_ms": answer.first_token_ms,
                 "total_ms": answer.total_ms,
                 "status": csv_status(answer.status),
