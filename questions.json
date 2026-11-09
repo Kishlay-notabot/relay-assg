@@ -1,0 +1,138 @@
+[
+  {
+    "id": "t-heads",
+    "question": "How many attention heads does the Transformer base model use?",
+    "paper": "1706.03762v7",
+    "answerable": true,
+    "must_include": ["8"]
+  },
+  {
+    "id": "t-dmodel",
+    "question": "What is the model dimensionality d_model used in the Transformer base model?",
+    "paper": "1706.03762v7",
+    "answerable": true,
+    "must_include": ["512"]
+  },
+  {
+    "id": "t-bleu",
+    "question": "What BLEU score does the Transformer achieve on English-to-German translation?",
+    "paper": "1706.03762v7",
+    "answerable": true,
+    "must_include": ["28.4"]
+  },
+  {
+    "id": "t-warmup",
+    "question": "How many warmup steps does the Transformer learning rate schedule use?",
+    "paper": "1706.03762v7",
+    "answerable": true,
+    "must_include": ["4000"]
+  },
+  {
+    "id": "t-beta2",
+    "question": "What value of beta2 does the Adam optimizer use in Transformer training?",
+    "paper": "1706.03762v7",
+    "answerable": true,
+    "must_include": ["0.98"]
+  },
+  {
+    "id": "t-label-smoothing",
+    "question": "What label smoothing value is used during Transformer training?",
+    "paper": "1706.03762v7",
+    "answerable": true,
+    "must_include": ["0.1"]
+  },
+  {
+    "id": "t-positional",
+    "question": "Which mathematical functions are used for the Transformer's positional encodings?",
+    "paper": "1706.03762v7",
+    "answerable": true,
+    "must_include": ["sine", "cosine"]
+  },
+  {
+    "id": "t-self-attention",
+    "question": "Why is self-attention preferred over recurrent layers for long sequences?",
+    "paper": "1706.03762v7",
+    "answerable": true,
+    "any_of": ["path", "sequential", "parallel"]
+  },
+  {
+    "id": "m-what",
+    "question": "What kind of model is Moshi?",
+    "paper": "2410.00037v1",
+    "answerable": true,
+    "must_include": ["speech", "dialogue"]
+  },
+  {
+    "id": "m-codec",
+    "question": "Which neural audio codec does Moshi use?",
+    "paper": "2410.00037v1",
+    "answerable": true,
+    "must_include": ["mimi"]
+  },
+  {
+    "id": "m-frame-rate",
+    "question": "At what frame rate does Mimi operate?",
+    "paper": "2410.00037v1",
+    "answerable": true,
+    "must_include": ["12.5"]
+  },
+  {
+    "id": "m-inner-monologue",
+    "question": "What is the Inner Monologue in Moshi?",
+    "paper": "2410.00037v1",
+    "answerable": true,
+    "must_include": ["text", "monologue"]
+  },
+  {
+    "id": "m-full-duplex",
+    "question": "What does full-duplex conversation mean in Moshi?",
+    "paper": "2410.00037v1",
+    "answerable": true,
+    "any_of": ["simultaneous", "same time", "overlap"]
+  },
+  {
+    "id": "d-what",
+    "question": "What is dynamic chunking?",
+    "paper": "2507.07955v2",
+    "answerable": true,
+    "any_of": ["boundar", "segment", "chunk"]
+  },
+  {
+    "id": "d-hnet",
+    "question": "What does the hierarchical network H-Net do?",
+    "paper": "2507.07955v2",
+    "answerable": true,
+    "must_include": ["hierarch"]
+  },
+  {
+    "id": "d-bytes",
+    "question": "Does the dynamic chunking model operate on bytes or on tokens?",
+    "paper": "2507.07955v2",
+    "answerable": true,
+    "must_include": ["byte"]
+  },
+  {
+    "id": "u-france",
+    "question": "What is the capital of France?",
+    "paper": null,
+    "answerable": false
+  },
+  {
+    "id": "u-weather",
+    "question": "What was the weather in Paris while the Moshi model was being trained?",
+    "paper": null,
+    "answerable": false
+  },
+  {
+    "id": "u-quantum",
+    "question": "What do these papers say about quantum computing?",
+    "paper": null,
+    "answerable": false
+  },
+  {
+    "id": "u-acquisition",
+    "question": "Which company acquired the Transformer authors in 2024?",
+    "paper": null,
+    "answerable": false
+  }
+]

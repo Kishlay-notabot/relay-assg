@@ -1,0 +1,8 @@
+.env
+__pycache__/
+*.pyc
+.DS_Store
+raw/
+chunks_*.jsonl
+demo_*.csv
+The_Relay_Assignment_Brief.pdf
