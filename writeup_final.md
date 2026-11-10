@@ -2,16 +2,17 @@
 
 ## 1. What I built and why
 
-Python pipeline: **retrieve** (BM25 over 1,200-character pieces, top 5, optional coverage
-re-rank) → **refusal gate** (weak best hit = refuse with no model call) → **draft with
-citations** → **verify against the same passages** → **one redraft loop**. One client serves
-Groq and a stand-in I control.
+A Python pipeline that answers engineers' questions from three pinned arXiv papers:
+**retrieve** (BM25 over 1,200-character pieces, top 5, optional coverage re-rank) →
+**refusal gate** (weak best hit = refuse with no model call) → **draft with citations** →
+**verify the draft against the same passages** → **up to two redrafts**. A real Groq client
+and a controllable stand-in implement the same interface.
 
-The decision that shaped it: **treat limits as scheduling, not error handling.** A client-side
-governor owns RPM/TPM/RPD/TPD — it waits under minute pressure, skips verification above 90% of
-the daily budget, and refuses before the call when the day is gone. The stand-in lets me test
-what the free tier cannot survive. Every request is measured into one raw file, so every table
-number is recomputable.
+The decision that shaped it: **treat provider limits as scheduling, not error handling.** A
+client-side governor owns RPM/TPM/RPD/TPD — it waits under minute pressure, skips verification
+above 90% of the daily budget, and refuses before the call when the day is gone. The stand-in
+lets me test what the free tier cannot survive. Every request lands in one raw file, so every
+table number is recomputable.
 
 ## 2. The real service and my stand-in
 
@@ -19,20 +20,20 @@ number is recomputable.
 
 | Limit | Value found | How I found it | Confidence |
 |---|---|---|---|
-| Requests per minute | 30 | Docs; real 429 during a ramp | High |
+| Requests per minute | 30 | Docs; real 429 on a ~50/min ramp: `Limit 30, Used 30` | High |
 | Tokens per minute | 8,000 | Docs; real 429: `Limit 8000, Used 7556` | High |
 | Requests per day | 1,000 | Docs; `x-ratelimit-remaining-requests` counts down per request | High |
 | Tokens per day | 200,000 | Docs only (no TPD header) | Low–medium |
 | Requests in flight | not measured | TPM throttled us before concurrency did | — |
-| On a limit | HTTP 429 naming the limit, `retry-after: 2` | Real 429 body and headers | High |
-| Time to recover | 2 s; next request after 3 s succeeded | Probe: wait then retry | High |
+| On a limit | HTTP 429 naming the limit, `retry-after: 2` | Captured body and headers | High |
+| Time to recover | `retry-after` 2 s; one post-wait request timed out | Probe: wait then retry; n=1, inconclusive | Medium |
 
-Headers are per-model. Measured real latency (n=31 tiny requests): TTFT p50 449 ms, p95 519 ms.
+Headers are per-model. Probe latency (n=31 tiny requests): TTFT p50 155 ms, p95 489 ms.
 
 The stand-in mirrors the OpenAI streaming shape: fixed TTFT, word-by-word streaming, injected
 failures, 429 with `retry-after`, and 150 ms per in-flight request. Calibrated from the probe
 (450 ms TTFT, 30 RPM, 8K TPM). **Where it differs most:** flat 40 tokens/request (real prompts
-are 1.5–2K), no reasoning, fixed reply — its latency/failure data is meaningful, its quality
+are 1.5–2K), no reasoning, fixed reply — its latency and failure data is meaningful, its quality
 data is not.
 
 ## 3. Results
@@ -64,31 +65,32 @@ Real: the 20-question quality set and Table 3. All load shapes use the stand-in.
 
 \* Two sequential batches with governor waits, not a load shape; the duration is wall-clock.
 
-**Quality, 20 questions written by me (16 answerable across the three papers, 4 unanswerable,
+**Quality, 20 questions I wrote (16 answerable across the three papers, 4 unanswerable,
 including the France trap):** 13 correct and cited (65%), 3 correctly refused (15%), 2 unverified
-drafts (10%), 2 failures (rate limit, timeout) (10%). Wrong answers: **0**. Mean 4,998
-tokens/answer. **A number I could not have guessed:** verification is a second model call that
-begins *after* the first token, so ~1.8 s of a burst request is spent after the user has already
-seen text. Also, the cheapest retrieval setting is fastest to first token (190 ms) and least
-correct (16.7%).
+drafts (10%), 2 failures — one rate limit, one timeout (10%). **Wrong answers: 0.** Of the 16 that
+produced a gradeable answer, 13 were correct (81.2%) and 3 were correct refusals (18.8%); both
+denominators are stated so neither flatters the run. Mean 4,998 tokens/answer. **A number I could
+not have guessed:** verification is a second model call that begins *after* the first token, so
+~1.8 s of a burst request is spent after the user has already seen text. Also, the cheapest
+retrieval setting is fastest to first token (190 ms) and least correct (16.7%).
 
 ## 4. Where the time goes
 
 Slowest request `burst-008` (sidecar traces): total **4,026 ms**; **1,969 ms before the first
 token**, **2,057 ms after (51%)**. Retrieval 97 ms, model work 3,929 ms, retry wait 0. Steps:
 draft 2,122 ms → verify 1,807 ms. The pre-token half is burst queueing plus the stand-in's
-per-in-flight slowdown; the post-token half is the rest of the draft stream **plus verify**,
-which must finish before the answer is sent. I know because the client timestamps the first
-chunk and each step, and the trace records the split.
+per-in-flight slowdown; the post-token half is the rest of the draft stream **plus verify**, which
+must finish before the answer is sent. I know because the client timestamps the first chunk and
+each step, and the trace records the split.
 
 ## 5. When a limit is hit
 
 **Per-minute:** the governor sleeps until the window frees a slot — the person is *delayed*, not
-dropped (shown as budget-wait time). Without it, the provider 429s; with one 2 s retry only
-7/30 survived (23.3%), p95 TTFT 712 ms. **Per-day:** above 90% the governor skips verification —
-later callers get a **weaker, unverified answer**; at 100% it refuses before the model call —
-they are **dropped immediately** at zero token cost (96.7% of that scenario). The trade: verify
-early in the day, speed and honesty late.
+dropped (shown as budget-wait time). Without it, the provider 429s; with one 2 s retry only 7/30
+survived (23.3%), p95 TTFT 712 ms. **Per-day:** above 90% the governor skips verification — later
+callers get a **weaker, unverified answer**; at 100% it refuses before the model call — they are
+**dropped immediately** at zero token cost (96.7% of that scenario). The trade: verify early in
+the day, speed and honesty late.
 
 ## 6. Retries
 
@@ -135,15 +137,16 @@ _[To be written by me.]_
 
 ## How I worked with the assistant
 
-The real session is included. Three prompts that mattered: (1) *"can we set reasoning budget to
-zero, check docs"* — the docs showed GPT-OSS floors at `low` while Qwen supports `none`, which is
-why the final model is Qwen. (2) *"stop everything what's happening?"* — interrupted an in-flight
-paid run and reset the workflow to estimate tokens before every real request. (3) *"tell me the
-result before running any new real test"* — made results review a gate rather than a race.
+The real prompt history is included as `conversation.md`. Three prompts that mattered: (1) *"can we
+set reasoning budget to zero, check docs"* — the docs showed the previous model floors at `low`
+while Qwen supports `none`, which is why the final model is Qwen. (2) *"stop everything what's
+happening?"* — interrupted an in-flight paid run and reset the workflow to estimate tokens before
+every real request. (3) *"tell me the result before running any new real test"* — made results
+review a gate rather than a race.
 
 One thing it got wrong that I caught: it launched a second full real evaluation while I was still
 reading the first result set; I stopped it at 13 of 20 questions. The fix was process: quote the
-token cost and get a go-ahead. One decision where I overruled it: it recommended staying on
-GPT-OSS-20B; after the docs check I chose Qwen with reasoning disabled. Distinctly mine: the
+token cost and get a go-ahead. One decision where I overruled it: it recommended keeping the
+previous model; after the docs check I chose Qwen with reasoning disabled. Distinctly mine: the
 question set (including the France trap), the decision to keep one model and drop the comparison,
 and the budget discipline that stopped two runs.

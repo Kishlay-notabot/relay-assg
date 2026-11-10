@@ -15,7 +15,7 @@ import requests
 from relay.llm import CompletionResult, LLMError, LLMTimeout, RateLimited
 
 DEFAULT_BASE = "https://api.groq.com/openai/v1"
-DEFAULT_MODEL = "openai/gpt-oss-20b"
+DEFAULT_MODEL = "qwen/qwen3.8-27b"
 
 
 class GroqClient:

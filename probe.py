@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Groq free-tier probe for openai/gpt-oss-20b.
+Groq free-tier probe for qwen/qwen3.8-27b (reasoning disabled).
 
 Measures, with a tiny budget of real requests:
   1. Latency spread  - time to first token (TTFT) and total time over N tiny
@@ -28,7 +28,7 @@ from datetime import datetime, timezone
 import requests
 
 API_URL = "https://api.groq.com/openai/v1/chat/completions"
-MODEL = os.environ.get("GROQ_MODEL", "openai/gpt-oss-20b")
+MODEL = os.environ.get("GROQ_MODEL", "qwen/qwen3.8-27b")
 OUT_CSV = "probe_results.csv"
 
 LATENCY_REQUESTS = 20          # tiny sequential requests for latency spread
@@ -61,6 +61,7 @@ def tiny_request(api_key, phase, request_id, record, max_tokens=5):
         "messages": [{"role": "user", "content": "Reply with exactly: OK"}],
         "max_tokens": max_tokens,
         "stream": True,
+        "reasoning_effort": "none",
     }
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -225,12 +226,10 @@ def main():
         if xs:
             print(f"{name:<16} p50={pct(xs, .5):>6} p95={pct(xs, .95):>6} p99={pct(xs, .99):>6} ms")
     rr = [int(r["remaining_requests"]) for r in ok if r["remaining_requests"]]
-    rt = [int(r["remaining_tokens"]) for r in ok if r["remaining_tokens"]]
-    if rr and rt:
-        drop_req = max(rr) - min(rr)
-        drop_tok = max(rt) - min(rt)
-        print(f"consumed over the run: {drop_req} requests, {drop_tok} tokens")
-        print(f"per request: ~{round(drop_tok / max(1, drop_req))} tokens")
+    if rr:
+        print(f"requests consumed over the run: {max(rr) - min(rr)}")
+    print("note: remaining-tokens is a per-minute bucket, so its header delta is "
+          "not a measure of tokens consumed; use the usage fields per request.")
     hardest = [r for r in rows if r["status"] == "rate_limited"]
     if hardest:
         h = hardest[0]

@@ -53,7 +53,7 @@ def main() -> None:
     p.add_argument("--model", default="qwen/qwen3.8-27b")
     p.add_argument("--reasoning-effort", default="none",
                    choices=["none", "low", "medium", "high", ""],
-                   help="none is Qwen-only; GPT-OSS supports low/medium/high")
+                   help="none is Qwen-only; reasoning models may need low/medium/high")
     args = p.parse_args()
     load_env()
 
