@@ -15,6 +15,12 @@ from relay.llm import CompletionResult, LLMError, LLMTimeout, RateLimited
 from relay.retrieval import Chunk, is_answerable, retrieve
 
 CITE_RE = re.compile(r"\b(\d{4}\.\d{4,5}v\d+)\s+p\.(\d+)")
+REFUSAL_START_RE = re.compile(
+    r"^\s*(the\s+)?(provided\s+)?(passages?|context|texts?|excerpts?)\s+"
+    r"(do not|does not|don't|doesn't|did not)\s+"
+    r"(contain|cover|address|mention|say|provide|include|discuss)",
+    re.IGNORECASE,
+)
 
 REFUSAL_TEXT = (
     "The papers in this library do not say. I can only answer from the three "
@@ -88,6 +94,17 @@ def extract_citations(text: str) -> list[str]:
             seen.add(cite)
             out.append(cite)
     return out
+
+
+def is_refusal(text: str) -> bool:
+    """True when the model says the library cannot answer.
+
+    Models do not always emit the bare marker: Qwen tends to explain first and
+    append NOT_IN_PASSAGES (or start with "the passages do not contain ...")
+    while still citing nearby pages. Treating that as a draft wastes a verifier
+    call and mislabels a correct refusal.
+    """
+    return "not_in_passages" in text.lower() or bool(REFUSAL_START_RE.match(text))
 
 
 def _passages(hits: list[Chunk]) -> str:
@@ -182,7 +199,7 @@ class Pipeline:
                     answer.redrafts += 1
                     answer.retries += 1
                 draft = self._draft(question, answer, feedback)
-                if draft.strip().startswith("NOT_IN_PASSAGES"):
+                if is_refusal(draft):
                     answer.status, answer.text = "refused", REFUSAL_TEXT
                     return answer
                 if not extract_citations(draft):

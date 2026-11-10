@@ -40,8 +40,11 @@ def main() -> None:
     p.add_argument("--out", type=Path, default=Path("results.csv"))
     p.add_argument("--presets", nargs="*", default=list(PRESETS))
     p.add_argument("--limit", type=int, default=10)
+    p.add_argument("--ids", nargs="*", default=None, help="only these question ids")
     p.add_argument("--min-score", type=float, default=0.2)
     p.add_argument("--max-retries", type=int, default=1)
+    p.add_argument("--governor", action="store_true",
+                   help="pace calls client-side (recommended for real runs)")
     p.add_argument("--ttft-ms", type=int, default=200)
     p.add_argument("--chunk-ms", type=int, default=5)
     p.add_argument("--rpm", type=int, default=1000)
@@ -54,6 +57,13 @@ def main() -> None:
     load_env()
 
     specs = load_questions(args.questions)[: args.limit]
+    if args.ids:
+        specs = [s for s in load_questions(args.questions) if s.id in set(args.ids)]
+
+    governor = None
+    if args.governor:
+        from relay.governor import Governor, GovernorConfig
+        governor = Governor(GovernorConfig())
     server = None
     if args.source == "real":
         if not args.yes_spend_real:
@@ -79,7 +89,7 @@ def main() -> None:
                     GroqClient(api_key=api_key, base_url=base_url, model=model,
                                reasoning_effort=args.reasoning_effort or None),
                     max_retries=args.max_retries)
-                answer = Pipeline(client, chunks, config).run(q.question)
+                answer = Pipeline(client, chunks, config, governor=governor).run(q.question)
                 letter = grade(q, answer.status, answer.text, answer.citations)
                 rows.append({
                     "request_id": f"{name}-{q.id}",

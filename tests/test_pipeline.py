@@ -144,6 +144,27 @@ class VerificationLoopTest(unittest.TestCase):
         self.assertEqual(answer.text, REFUSAL_TEXT)
         self.assertEqual(len(client.calls), 1)  # no redraft, no verify
 
+    def test_refusal_marker_appended_to_prose_is_still_a_refusal(self):
+        client = FakeClient([
+            "The passages do not cover this. NOT_IN_PASSAGES [1706.03762v7 p.9]"
+        ])
+        answer = Pipeline(client, CHUNKS, CONFIG).run("how many attention heads")
+
+        self.assertEqual(answer.status, "refused")
+        self.assertEqual(answer.text, REFUSAL_TEXT)
+        self.assertEqual(len(client.calls), 1)  # no verify call spent on a refusal
+
+    def test_refusal_phrasing_with_citations_is_still_a_refusal(self):
+        client = FakeClient([
+            "The provided passages do not contain any information regarding quantum "
+            "computing [2507.07955v2 p.32]."
+        ])
+        answer = Pipeline(client, CHUNKS, CONFIG).run("how many attention heads")
+
+        self.assertEqual(answer.status, "refused")
+        self.assertEqual(answer.text, REFUSAL_TEXT)
+        self.assertEqual(len(client.calls), 1)
+
     def test_verifier_gets_enough_tokens_for_reasoning_models(self):
         client = FakeClient([GROUNDED, "YES"])
         Pipeline(client, CHUNKS, CONFIG).run("how many attention heads")

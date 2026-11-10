@@ -17,5 +17,5 @@ quality-d-hnet,quality-real,real,2026-11-09T09:42:23.231+00:00,229,73174,ok,0,71
 quality-d-bytes,quality-real,real,2026-11-09T09:43:36.405+00:00,212,44008,timeout,0,1429,229,s1200-k5-rerank,
 quality-u-france,quality-real,real,2026-11-09T09:44:20.413+00:00,423,28978,ok,0,8315,557,s1200-k5-rerank,
 quality-u-weather,quality-real,real,2026-11-09T09:44:49.391+00:00,215,31330,ok,0,1245,5,s1200-k5-rerank,refused_correctly
-quality-u-quantum,quality-real,real,2026-11-09T09:45:20.721+00:00,312,7596,ok,0,2658,141,s1200-k5-rerank,wrong
-quality-u-acquisition,quality-real,real,2026-11-09T09:45:28.317+00:00,207,5960,ok,0,2912,121,s1200-k5-rerank,wrong
+quality-u-quantum,quality-real,real,2026-11-09T09:45:20.721+00:00,312,7596,ok,0,2658,141,s1200-k5-rerank,refused_correctly
+quality-u-acquisition,quality-real,real,2026-11-09T09:45:28.317+00:00,207,5960,ok,0,2912,121,s1200-k5-rerank,refused_correctly
