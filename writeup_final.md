@@ -9,7 +9,7 @@ A Python pipeline that answers engineers' questions from three pinned arXiv pape
 and a controllable stand-in implement the same interface.
 
 The decision that shaped it: **treat provider limits as scheduling, not error handling.** A
-client-side governor owns RPM/TPM/RPD/TPD — it waits under minute pressure, skips verification
+client-side governor owns RPM/TPM/RPD/TPD. It waits under minute pressure, skips verification
 above 90% of the daily budget, and refuses before the call when the day is gone. The stand-in
 lets me test what the free tier cannot survive. Every request lands in one raw file, so every
 table number is recomputable.
@@ -23,8 +23,8 @@ table number is recomputable.
 | Requests per minute | 30 | Docs; real 429 on a ~50/min ramp: `Limit 30, Used 30` | High |
 | Tokens per minute | 8,000 | Docs; real 429: `Limit 8000, Used 7556` | High |
 | Requests per day | 1,000 | Docs; `x-ratelimit-remaining-requests` counts down per request | High |
-| Tokens per day | 200,000 | Docs only (no TPD header) | Low–medium |
-| Requests in flight | not measured | TPM throttled us before concurrency did | — |
+| Tokens per day | 200,000 | Docs only (no TPD header) | Low to medium |
+| Requests in flight | not measured | TPM throttled us before concurrency did | n/a |
 | On a limit | HTTP 429 naming the limit, `retry-after: 2` | Captured body and headers | High |
 | Time to recover | `retry-after` 2 s; one post-wait request timed out | Probe: wait then retry; n=1, inconclusive | Medium |
 
@@ -33,7 +33,7 @@ Headers are per-model. Probe latency (n=31 tiny requests): TTFT p50 155 ms, p95 
 The stand-in mirrors the OpenAI streaming shape: fixed TTFT, word-by-word streaming, injected
 failures, 429 with `retry-after`, and 150 ms per in-flight request. Calibrated from the probe
 (450 ms TTFT, 30 RPM, 8K TPM). **Where it differs most:** flat 40 tokens/request (real prompts
-are 1.5–2K), no reasoning, fixed reply — its latency and failure data is meaningful, its quality
+are 1.5K to 2K), no reasoning, fixed reply: its latency and failure data is meaningful, its quality
 data is not.
 
 ## 3. Results
@@ -67,7 +67,7 @@ Real: the 20-question quality set and Table 3. All load shapes use the stand-in.
 
 **Quality, 20 questions I wrote (16 answerable across the three papers, 4 unanswerable,
 including the France trap):** 13 correct and cited (65%), 3 correctly refused (15%), 2 unverified
-drafts (10%), 2 failures — one rate limit, one timeout (10%). **Wrong answers: 0.** Of the 16 that
+drafts (10%), 2 failures (one rate limit, one timeout, 10%). **Wrong answers: 0.** Of the 16 that
 produced a gradeable answer, 13 were correct (81.2%) and 3 were correct refusals (18.8%); both
 denominators are stated so neither flatters the run. Mean 4,998 tokens/answer. **A number I could
 not have guessed:** verification is a second model call that begins *after* the first token, so
@@ -85,10 +85,10 @@ each step, and the trace records the split.
 
 ## 5. When a limit is hit
 
-**Per-minute:** the governor sleeps until the window frees a slot — the person is *delayed*, not
+**Per-minute:** the governor sleeps until the window frees a slot; the person is *delayed*, not
 dropped (shown as budget-wait time). Without it, the provider 429s; with one 2 s retry only 7/30
-survived (23.3%), p95 TTFT 712 ms. **Per-day:** above 90% the governor skips verification — later
-callers get a **weaker, unverified answer**; at 100% it refuses before the model call — they are
+survived (23.3%), p95 TTFT 712 ms. **Per-day:** above 90% the governor skips verification, so later
+callers get a **weaker, unverified answer**; at 100% it refuses before the model call, and they are
 **dropped immediately** at zero token cost (96.7% of that scenario). The trade: verify early in
 the day, speed and honesty late.
 
@@ -111,16 +111,16 @@ waited the full 2 s, retried, got 429 again, and gave up after 2,979 ms for zero
 
 I chose **1,200 / k=5 / re-rank**: it matches the larger pieces on correctness with a much better
 median total (10.4 s vs 17.0 s); 600-character pieces are fast and cheap but miss facts (16.7%).
-The 2,400 setting uses 38% fewer tokens — attractive under TPM pressure — but is slower at the
+The 2,400 setting uses 38% fewer tokens, attractive under TPM pressure, but is slower at the
 median on a six-question sample. When a limit is close I cut k from 5 to 3, drop re-ranking, then
 skip verification before refusing.
 
 **How this library misleads a naive retriever.** (1) *Appendix transcripts outrank tables*: "How
 many attention heads does the Transformer use?" surface-matches chatty appendix pages ahead of the
 table discussion. (2) *BM25 scores are not comparable across queries*: "What is the capital of
-France?" scores 11.08 off a Moshi transcript, above genuinely relevant hits — the word appears, the
+France?" scores 11.08 off a Moshi transcript, above genuinely relevant hits: the word appears, the
 answer does not. (3) *Numbers straddle chunk boundaries*: "h = 8 heads"/"d_model = 512" sit in a
-layout-separated table, and a 1,200-character cut can keep the caption but drop the row — k=3 did
+layout-separated table, and a 1,200-character cut can keep the caption but drop the row. k=3 did
 exactly this and the model honestly refused.
 
 ## What I'm unsure about, what I left out, what I learned
@@ -128,7 +128,7 @@ exactly this and the model honestly refused.
 Least certain: that free-tier limits are **per model**, so quality and retrieval runs spend separate
 daily budgets. If shared, my budget math is wrong and those runs would have failed sooner. Not
 built: cross-provider failover, and a persistent answer cache. New to me: on a reasoning model,
-hidden reasoning tokens are charged against `max_tokens` — a 60-token verifier cap returned empty
+hidden reasoning tokens are charged against `max_tokens`: a 60-token verifier cap returned empty
 content, so every answer looked unverified.
 
 ## Your feedback on Vaani
@@ -138,10 +138,10 @@ _[To be written by me.]_
 ## How I worked with the assistant
 
 The real prompt history is included as `conversation.md`. Three prompts that mattered: (1) *"can we
-set reasoning budget to zero, check docs"* — the docs showed the previous model floors at `low`
+set reasoning budget to zero, check docs"*: the docs showed the previous model floors at `low`
 while Qwen supports `none`, which is why the final model is Qwen. (2) *"stop everything what's
-happening?"* — interrupted an in-flight paid run and reset the workflow to estimate tokens before
-every real request. (3) *"tell me the result before running any new real test"* — made results
+happening?"*: interrupted an in-flight paid run and reset the workflow to estimate tokens before
+every real request. (3) *"tell me the result before running any new real test"*: made results
 review a gate rather than a race.
 
 One thing it got wrong that I caught: it launched a second full real evaluation while I was still
